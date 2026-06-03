@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  telecom-core-gateway:
+    build: .
+    container_name: bharatconnect_core_engine
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+    # If the gateway crashes due to extreme load, Docker automatically boots it back up
+    restart: always

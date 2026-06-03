@@ -1,74 +1,59 @@
-const http = require('http');
-const fs = require('fs');
+const express = require('express');
 const path = require('path');
-
+const app = express();
 const PORT = 5000;
-const SIMULATED_FAILURE_RATE = 0.50; // 50% chance of backend dropping the packet
 
-const telecomPlans = [
-    { id: "199", price: "199", validity: "30 Days", desc: "2GB/Day + Unlimited Calls" },
-    { id: "797", price: "797", validity: "300 Days", desc: "Keep SIM active long-term" }
-];
+// Global metrics tracker for our simulation
+let systemMetrics = {
+    totalRequests: 0,
+    successfulRequests: 0,
+    droppedRequests: 0,
+};
 
-const server = http.createServer((req, res) => {
-    // 1. Set global CORS headers to allow smooth data flow
+// Middleware parsing
+app.use(express.json());
+
+// Enable CORS so browser requests pass securely
+app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') {
-        res.writeHead(204);
-        res.end();
-        return;
-    }
-
-    // 2. SERVE THE UI: Catch root path requests and return the index.html file
-    if (req.url === '/' || req.url === '/index.html') {
-        fs.readFile(path.join(__dirname, 'index.html'), (err, content) => {
-            if (err) {
-                res.writeHead(500, { 'Content-Type': 'text/plain' });
-                res.end("Error: index.html file not found in directory.");
-            } else {
-                res.writeHead(200, { 'Content-Type': 'text/html' });
-                res.end(content, 'utf-8');
-            }
-        });
-        return;
-    }
-
-    // 3. API ENDPOINT: Fetch active data plans
-    if (req.url === '/api/plans' && req.method === 'GET') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(telecomPlans));
-        return;
-    }
-
-    // 4. API ENDPOINT: Process transaction with simulated flakiness
-    if (req.url === '/api/recharge' && req.method === 'POST') {
-        let body = '';
-        req.on('data', chunk => { body += chunk.toString(); });
-        req.on('end', () => {
-            const { mobile, planId } = JSON.parse(body);
-
-            if (Math.random() < SIMULATED_FAILURE_RATE) {
-                console.log(`[BACKEND] ❌ Request dropped for ${mobile}. Simulating 504 Gateway Timeout.`);
-                res.writeHead(504, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: "HLR Core Database failed to respond." }));
-            } else {
-                console.log(`[BACKEND] ✅ Recharge successful for ${mobile} with plan ₹${planId}`);
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, message: `Recharge of ₹${planId} credited successfully.` }));
-            }
-        });
-        return;
-    }
-
-    // Fallback for non-existent requests
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: "Endpoint not found" }));
+    next();
 });
 
-server.listen(PORT, () => {
-    console.log(`\n🚀 SDE Full-Stack Simulation live at port ${PORT}`);
-    console.log(`📡 Serving UI and Core Gateway endpoints flawlessly.\n`);
+// 1. Unified Route: Serve the frontend UI home page automatically
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// 2. API Route: Fetch live system metrics
+app.get('/api/metrics', (req, res) => {
+    res.json(systemMetrics);
+});
+
+// 3. API Route: Reset simulation logs
+app.post('/api/reset', (req, res) => {
+    systemMetrics = { totalRequests: 0, successfulRequests: 0, droppedRequests: 0 };
+    res.json({ message: "Metrics reset successfully" });
+});
+
+// 4. API Route: Main Recharge Endpoint with Fault Injection
+app.post('/api/recharge', (req, res) => {
+    systemMetrics.totalRequests++;
+    
+    // INTENTIONAL FAILURE INJECTION: 60% chance to drop requests under heavy load simulation
+    if (Math.random() < 0.6) {
+        systemMetrics.droppedRequests++;
+        console.log(`[BACKEND] ❌ 504 Gateway Timeout Simulated.`);
+        res.status(504).json({ error: "Gateway Timeout" });
+    } else {
+        systemMetrics.successfulRequests++;
+        console.log(`[BACKEND] ✅ Transaction cleared for target: ${req.body.mobile || 'Simulated Client'}`);
+        res.status(200).json({ message: "Recharge Successful", status: "COMPLETED" });
+    }
+});
+
+// Fire up unified server pipeline
+app.listen(PORT, () => {
+    console.log(`🚀 Unified Express Core Architecture live on port ${PORT}`);
 });
