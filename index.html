@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BharatConnect - NextGen Recharge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-md w-full bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-6 space-y-6">
+        <div class="text-center">
+            <h1 class="text-2xl font-bold tracking-wide text-blue-400">BharatConnect</h1>
+            <p class="text-sm text-slate-400 mt-1">Distributed Fault-Tolerant Telecom Portal</p>
+        </div>
+
+        <hr class="border-slate-700">
+
+        <div class="space-y-2">
+            <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">Enter BSNL Mobile Number</label>
+            <input id="mobileInput" type="tel" maxlength="10" placeholder="e.g., 9440012345" 
+                class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent tracking-widest text-white placeholder-slate-600">
+        </div>
+
+        <div class="space-y-3">
+            <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">Select Popular Plan</label>
+            
+            <div id="plan199" onclick="selectPlan('199')" class="plan-card bg-slate-950 p-4 rounded-xl border border-slate-700 hover:border-slate-500 cursor-pointer transition flex justify-between items-center group">
+                <div>
+                    <span class="text-lg font-bold text-white">₹199</span>
+                    <span class="text-xs text-slate-400 ml-2">Validity: 30 Days</span>
+                    <p class="text-xs text-slate-400 mt-1">2GB/Day + Unlimited Calls</p>
+                </div>
+                <div id="radio199" class="h-4 w-4 rounded-full border border-slate-500 group-hover:border-slate-400 flex items-center justify-center transition-all"></div>
+            </div>
+
+            <div id="plan797" onclick="selectPlan('797')" class="plan-card bg-slate-950 p-4 rounded-xl border border-slate-700 hover:border-slate-500 cursor-pointer transition flex justify-between items-center group">
+                <div>
+                    <span class="text-lg font-bold text-white">₹797</span>
+                    <span class="text-xs text-slate-400 ml-2">Validity: 300 Days</span>
+                    <p class="text-xs text-slate-400 mt-1">Keep SIM active long-term</p>
+                </div>
+                <div id="radio797" class="h-4 w-4 rounded-full border border-slate-500 group-hover:border-slate-400 flex items-center justify-center transition-all"></div>
+            </div>
+        </div>
+
+        <div id="statusBox" class="hidden text-sm p-3 rounded-xl text-center font-medium"></div>
+
+        <button id="submitBtn" onclick="processRecharge()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3.5 rounded-xl transition-all shadow-lg shadow-blue-900/40 active:scale-[0.98]">
+            Proceed to Recharge
+        </button>
+    </div>
+
+    <script>
+        // CONFIGURATION: Points locally to your internal WebContainer proxy root
+        const BACKEND_URL = "";
+        
+        let selectedPlanId = null;
+        let currentAttempts = 0;
+        const MAX_RETRIES = 3;
+
+        function selectPlan(planAmount) {
+            selectedPlanId = planAmount;
+            
+            document.getElementById('plan199').className = "plan-card bg-slate-950 p-4 rounded-xl border border-slate-700 hover:border-slate-500 cursor-pointer transition flex justify-between items-center group";
+            document.getElementById('plan797').className = "plan-card bg-slate-950 p-4 rounded-xl border border-slate-700 hover:border-slate-500 cursor-pointer transition flex justify-between items-center group";
+            document.getElementById('radio199').className = "h-4 w-4 rounded-full border border-slate-500 flex items-center justify-center";
+            document.getElementById('radio797').className = "h-4 w-4 rounded-full border border-slate-500 flex items-center justify-center";
+            document.getElementById('radio199').innerHTML = "";
+            document.getElementById('radio797').innerHTML = "";
+
+            const card = document.getElementById('plan' + planAmount);
+            const radio = document.getElementById('radio' + planAmount);
+            
+            card.className = "plan-card bg-slate-950 p-4 rounded-xl border-2 border-blue-500 cursor-pointer transition flex justify-between items-center";
+            radio.className = "h-4 w-4 rounded-full border border-blue-500 flex items-center justify-center bg-blue-500";
+            radio.innerHTML = '<div class="h-1.5 w-1.5 bg-slate-900 rounded-full"></div>';
+        }
+
+        function processRecharge() {
+            const mobileNumber = document.getElementById('mobileInput').value.trim();
+            const btn = document.getElementById('submitBtn');
+            const status = document.getElementById('statusBox');
+
+            status.classList.add('hidden');
+
+            if (mobileNumber.length !== 10 || isNaN(mobileNumber)) {
+                showStatus("Please enter a valid 10-digit mobile number.", "bg-red-900/40 text-red-400 border border-red-800");
+                return;
+            }
+            if (!selectedPlanId) {
+                showStatus("Please choose a plan option before proceeding.", "bg-red-900/40 text-red-400 border border-red-800");
+                return;
+            }
+
+            currentAttempts = 0;
+            executeNetworkRequestWithRetry(mobileNumber, btn);
+        }
+
+        // ASYNC HTTP PIPELINE WITH STABLE SCOPE AND BRACE NESTING
+        async function executeNetworkRequestWithRetry(mobileNumber, btn) {
+            currentAttempts++;
+            
+            btn.disabled = true;
+            if (currentAttempts == 1) {
+                btn.innerText = "Transmitting Packet to API Gateway...";
+            } else {
+                btn.innerText = `Retry Attempt #${currentAttempts - 1} (Self-Healing)...`;
+            }
+            btn.className = "w-full bg-amber-700 text-amber-200 font-medium py-3.5 rounded-xl cursor-not-allowed text-sm animate-pulse";
+
+            try {
+                // Execute standard fetch call directly against backend node loop
+                const response = await fetch(`${BACKEND_URL}/api/recharge`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mobile: mobileNumber, planId: selectedPlanId })
+                });
+
+                const data = await response.json();
+
+                if (response.status === 200) {
+                    // SUCCESS STATE: Clear UI locks
+                    btn.disabled = false;
+                    btn.innerText = "Proceed to Recharge";
+                    btn.className = "w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3.5 rounded-xl transition-all shadow-lg shadow-blue-900/40 active:scale-[0.98]";
+                    
+                    showStatus(`Success! Cloud server response: ${data.message} (Resolved in ${currentAttempts} hit(s))`, "bg-emerald-900/40 text-emerald-400 border border-emerald-800");
+                } else {
+                    // Force entry to catch pipeline on a 504 server error
+                    throw new Error("504 Gateway Dropout");
+                }
+
+            } catch (error) {
+                // EXCEPTION CAUGHT: Initiate automated exponential backoff calculations
+                if (currentAttempts <= MAX_RETRIES) {
+                    
+                    // 1. Compute Exponential Curve Matrix (1s, 2s, 4s...)
+                    const baseDelay = 1000 * Math.pow(2, currentAttempts - 1); 
+                    
+                    // 2. Generate Random Decorrelation Factor (Jitter) to isolate individual clients
+                    const jitter = Math.floor(Math.random() * 500); 
+                    const totalDelay = baseDelay + jitter;
+                    
+                    // 3. Update the UI warning block with the explicit millisecond calculations
+                    showStatus(
+                        `⚠️ Drop detected! Staggering next transmission for ${totalDelay}ms (Base: ${baseDelay}ms + Jitter: ${jitter}ms)`, 
+                        "bg-amber-900/50 text-amber-300 border border-amber-700 font-mono text-xs"
+                    );
+
+                    btn.innerText = `Retrying in ${(totalDelay/1000).toFixed(2)}s...`;
+
+                    // Hold pipeline until structural delay interval completes
+                    setTimeout(() => {
+                        executeNetworkRequestWithRetry(mobileNumber, btn);
+                    }, totalDelay);
+
+                } else {
+                    // FATAL BREAKPOINT: Exceeded connection buffer limit
+                    btn.disabled = false;
+                    btn.innerText = "Proceed to Recharge";
+                    btn.className = "w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3.5 rounded-xl transition-all shadow-lg shadow-blue-900/40 active:scale-[0.98]";
+                    
+                    showStatus("Network Error: Cloud Gateway completely exhausted all automated reconnection buffers.", "bg-red-900/40 text-red-400 border border-red-800");
+                }
+            }
+        }
+
+        function showStatus(text, classes) {
+            const status = document.getElementById('statusBox');
+            status.classList.remove('hidden');
+            status.innerText = text;
+            status.className = "text-sm p-3 rounded-xl text-center font-medium " + classes;
+        }
+    </script>
+</body>
+</html>
