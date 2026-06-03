@@ -1,27 +1,22 @@
 # BharatConnect: Fault-Tolerant Distributed Telecom Portal & Load Lab
 
-A full-stack simulation engineered to analyze and solve high-congestion network drops during high-volume transactions (simulating core gateway traffic). Built using a Node.js/Express backend and a responsive vanilla JavaScript/Tailwind CSS frontend to showcase resilient system architecture.
+A decoupled microservice architecture engineered to analyze and solve high-congestion network drops during high-volume transactions. Built using a Node.js/Express API Gateway and an independent internal Processing Microservice running inside isolated Docker containers to showcase resilient system architecture.
 
-## 🛠️ System Architecture & Challenges
-In high-traffic systems, fixed-interval network retries cause a **"Thundering Herd"** problem, where multiple clients repeatedly crash a recovering server or core database in synchronized waves. 
+## 🛠️ Distributed System Architecture
+Instead of a monolithic backend, this architecture splits system responsibilities across dedicated microservices communicating over an internal network. This prevents database pile-ups and isolates cascading failures.
 
-To mitigate this, this project implements a client-side **Exponential Backoff with Jitter** algorithm to dynamically decorrelate retry patterns and smooth out traffic spikes.
-
-### Architectural Overview
+### System Topography
 ```text
-[Distributed Clients] 
-       │
-       ▼  (POST /api/recharge - Concurrent Load)
- [Express API Gateway] ──(Fault Injection: 60% Drops)──► [Core Engine]
-                                                             │
-                                 ┌───────────────────────────┴───────────────────────────┐
-                                 ▼                                                       ▼
-                       Success (200 OK)                                         Drop (504 Timeout)
-                                                                                         │
-                                                                       ┌─────────────────┴─────────────────┐
-                                                                       ▼                                   ▼
-                                                            [Synchronized Retries]              [Staggered Jitter Retries]
-                                                               (No Backoff Loop)                (Exponential Backoff Formula)
-                                                                       │                                   │
-                                                                       ▼                                   ▼
-                                                            Result: Socket Choking              Result: Traffic Smoothing
+                           ┌───────────────── Distributed System ─────────────────┐
+                           │                                                      │
+[Frontend UI] ──► [Gateway Service (Port 5000)] ──► [Processing Service (Port 5001)]
+                           │                                                      │
+                           └──────────────────────────────────────────────────────┘
+### The Math Under the Hood
+The smart retry interval expands exponentially based on consecutive failures, heavily padded by a randomized decorrelation factor (jitter) to distribute network demand across time:
+
+$$Delay = (\text{Base Delay} \times 2^{\text{attempt}}) + \text{Random Jitter}$$
+
+- **Attempt 1:** ~1000ms + random variance
+- **Attempt 2:** ~2000ms + random variance
+- **Attempt 3:** ~4000ms + random variance
