@@ -47,10 +47,10 @@
             
             <div class="grid grid-cols-2 gap-4">
                 <button onclick="runLoadSimulation(false)" class="bg-red-700 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-xl text-xs transition-all">
-                    Spawn 100 Clients<br><span class="font-normal opacity-80">(No Backoff/Synchronized)</span>
+                    Spawn 500 Clients<br><span class="font-normal opacity-80">(No Backoff/Synchronized)</span>
                 </button>
                 <button onclick="runLoadSimulation(true)" class="bg-emerald-700 hover:bg-emerald-600 text-white font-semibold py-3 px-4 rounded-xl text-xs transition-all">
-                    Spawn 100 Clients<br><span class="font-normal opacity-80">(With Exponential Jitter)</span>
+                    Spawn 500 Clients<br><span class="font-normal opacity-80">(With Exponential Jitter)</span>
                 </button>
             </div>
 
@@ -136,8 +136,8 @@
             await fetch(`${BACKEND_URL}/api/reset`, { method: 'POST' });
             updateMetricsDisplay();
 
-            // 2. Launch 100 virtual device connections concurrently
-            for (let i = 0; i < 100; i++) {
+            // 2. Launch 500 virtual device connections concurrently
+            for (let i = 0; i < 500; i++) {
                 simulateVirtualClient(`SimDevice-${1000 + i}`, useSmartBackoff, 1);
             }
         }
